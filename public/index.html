@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Multiplayer Drawing</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #drawing-area {
+      width: 100vw;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="drawing-area"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const canvas = document.getElementById('drawing-area');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Prompt the user for their name and color
+    const name = prompt('Enter your name:');
+    const color = prompt('Enter your color (e.g., #ff0000):');
+
+    // Send the user's name and color to the server
+    socket.emit('login', { name, color });
+
+    // Handle user join and leave events
+    socket.on('userJoined', (data) => {
+      console.log(`${data.name} joined`);
+    });
+
+    socket.on('userLeft', (userId) => {
+      console.log(`User ${userId} left`);
+    });
+
+    // Handle drawing events
+    socket.on('draw', (data) => {
+      ctx.beginPath();
+      ctx.strokeStyle = data.color;
+      ctx.moveTo(data.stroke.start.x, data.stroke.start.y);
+      ctx.lineTo(data.stroke.end.x, data.stroke.end.y);
+      ctx.stroke();
+    });
+
+    // Handle mouse events for drawing
+    canvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDrawing) {
+        const stroke = {
+          start: { x: lastX, y: lastY },
+          end: { x: e.clientX, y: e.clientY },
+        };
+
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(e.clientX, e.clientY);
+        ctx.stroke();
+
+        socket.emit('draw', { stroke, color });
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+  </script>
+</body>
+</html>
